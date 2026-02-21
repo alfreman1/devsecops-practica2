@@ -142,7 +142,7 @@ jobs:
 
       - name: Build Docker images
         run: |
-          docker compose -f ${{ env.COMPOSE_FILE }} build
+          docker compose -f ${{ env.COMPOSE_FILE }} build --no-cache
 
       - name: Tag Docker images
         run: |

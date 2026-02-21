@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY package*.json ./
 RUN npm ci --omit=dev
+RUN npm prune --omit=dev && rm -f package-lock.json
 
 COPY . .
 
