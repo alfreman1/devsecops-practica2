@@ -1,151 +1,241 @@
 name: DevSecOps CI/CD Pipeline
+
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
+
 jobs:
   devsecops:
     runs-on: ubuntu-latest
+    env:
+      NODE_VERSION: "20"
+      PYTHON_VERSION: "3.11"
+      COMPOSE_FILE: backend/docker-compose.yml
+      GATEWAY_URL: http://localhost:3000
     steps:
-    # =========================
-    # 1. Checkout
-    # =========================
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    # =========================
-    # 2. Setup Node
-    # =========================
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
-    # =========================
-    # 5.5 Create .env files (CI)
-    # =========================
-    - name: Create env files for Docker Compose
-      run: |
-        # Backend services
-        cp backend/users-service/.env.example backend/users-service/.env
-        cp backend/academic-service/.env.example backend/academic-service/.env
-        cp backend/api-gateway/.env.example backend/api-gateway/.env
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
-        echo "DB_HOST=${{ secrets.USERS_DB_HOST }}" >> backend/users-service/.env
-        echo "DB_USER=${{ secrets.USERS_DB_USER }}" >> backend/users-service/.env
-        echo "DB_PASSWORD=${{ secrets.USERS_DB_PASSWORD }}" >> backend/users-service/.env
+      - name: Create env files for Docker Compose
+        run: |
+          cp backend/users-service/.env.example backend/users-service/.env
+          cp backend/academic-service/.env.example backend/academic-service/.env
+          cp backend/api-gateway/.env.example backend/api-gateway/.env
+          cp frontend/.env.example frontend/.env
 
-        echo "DB_HOST=${{ secrets.ACADEMIC_DB_HOST }}" >> backend/academic-service/.env
-        echo "DB_USER=${{ secrets.ACADEMIC_DB_USER }}" >> backend/academic-service/.env
-        echo "DB_PASSWORD=${{ secrets.ACADEMIC_DB_PASSWORD }}" >> backend/academic-service/.env
+      # =========================
+      # Install (reproducible)
+      # =========================
+      - name: Install users-service
+        run: |
+          cd backend/users-service
+          npm ci
 
-        echo "USERS_SERVICE_URL=http://users-service:3001" >> backend/api-gateway/.env
-        echo "ACADEMIC_SERVICE_URL=http://academic-service:3002" >> backend/api-gateway/.env
-        # Frontend (build/test time)
-        cp frontend/.env.example frontend/.env
-        echo "VITE_API_URL=http://api-gateway:3000" >> frontend/.env
-    # =========================
-    # 3. Install & Test Backend
-    # =========================
-    - name: Install & Test users-service
-      run: |
-        cd backend/users-service
-        npm ci
-        npm test
+      - name: Install academic-service
+        run: |
+          cd backend/academic-service
+          npm ci
 
-    - name: Install & Test academic-service
-      run: |
-        cd backend/academic-service
-        npm ci
-        npm test
+      - name: Install api-gateway
+        run: |
+          cd backend/api-gateway
+          npm ci
 
-    - name: Install & Test api-gateway
-      run: |
-        cd backend/api-gateway
-        npm ci
-        npm test
+      - name: Install frontend
+        run: |
+          cd frontend
+          npm ci
 
-    # =========================
-    # 4. Install & Test Frontend
-    # =========================
-    - name: Install & Test frontend
-      run: |
-        cd frontend
-        npm ci
-        npm test
-    # =========================
-    # 5. SAST – Semgrep
-    # =========================
-    - name: Install Semgrep
-      run: |
-        python3 -m pip install --upgrade pip
-        pip install semgrep
-    - name: SAST user-service
-      run: |
-        cd backend/users-service
-        semgrep --config=auto --severity=ERROR
-    - name: SAST academic-service
-      run: |
-        cd backend/academic-service
-        semgrep --config=auto --severity=ERROR
-    - name: SAST api-gateway
-      run: |
-        cd backend/api-gateway
-        semgrep --config=auto --severity=ERROR
-    
-    - name: Validate env files
-      run: |
-        ls -la backend/users-service
-        ls -la backend/academic-service
-        ls -la backend/api-gateway
-        ls -la frontend
+      # =========================
+      # Code quality
+      # =========================
+      - name: Lint users-service
+        run: |
+          cd backend/users-service
+          npm run lint
 
-    # =========================
-    # 6. Docker Build
-    # =========================
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Lint academic-service
+        run: |
+          cd backend/academic-service
+          npm run lint
 
-    - name: Build Docker images
-      run: |
-        docker compose -f backend/docker-compose.yml build
+      - name: Lint api-gateway
+        run: |
+          cd backend/api-gateway
+          npm run lint
 
-    # =========================
-    # 7. SCA – Trivy
-    # =========================
-    - name: Trivy scan users-service
-      uses: aquasecurity/trivy-action@0.20.0
-      with:
-        image-ref: users-service
-        severity: HIGH
-        exit-code: 1
+      - name: Lint frontend
+        run: |
+          cd frontend
+          npm run lint
 
-    - name: Trivy scan academic-service
-      uses: aquasecurity/trivy-action@0.20.0
-      with:
-        image-ref: academic-service
-        severity: CRITICAL
-        exit-code: 1
+      # =========================
+      # Tests
+      # =========================
+      - name: Test users-service
+        run: |
+          cd backend/users-service
+          npm test
 
-    - name: Trivy scan api-gateway
-      uses: aquasecurity/trivy-action@0.20.0
-      with:
-        image-ref: api-gateway
-        severity: CRITICAL
-        exit-code: 1
+      - name: Test academic-service
+        run: |
+          cd backend/academic-service
+          npm test
 
-    # =========================
-    # 8. Smoke test
-    # =========================
-    - name: Run docker-compose
-      run: |
-        docker compose -f backend/docker-compose.yml up -d
-        sleep 15
+      - name: Test api-gateway
+        run: |
+          cd backend/api-gateway
+          npm test
 
-    - name: Smoke test API Gateway
-      run: |
-        curl http://localhost:3000/health
+      - name: Test frontend
+        env:
+          CI: true
+        run: |
+          cd frontend
+          npm test
 
-    - name: Shutdown services
-      if: always()
-      run: docker compose -f backend/docker-compose.yml down || true
+      # =========================
+      # SAST - Semgrep
+      # =========================
+      - name: Install Semgrep
+        run: |
+          python -m pip install --upgrade pip
+          pip install semgrep
+
+      - name: SAST scan (Semgrep)
+        run: |
+          semgrep --config=auto --severity=ERROR
+
+      # =========================
+      # SCA
+      # =========================
+      - name: SCA frontend (npm audit)
+        run: |
+          cd frontend
+          npm audit --audit-level=critical
+
+      - name: SCA backend (pip-audit if requirements.txt exists)
+        run: |
+          python -m pip install pip-audit
+          if [ -n "$(find . -name 'requirements*.txt' -print -quit)" ]; then
+            pip-audit --severity critical
+          else
+            echo "No requirements.txt found. Skipping pip-audit."
+          fi
+
+      # =========================
+      # Docker build + versioning
+      # =========================
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker images
+        run: |
+          docker compose -f ${{ env.COMPOSE_FILE }} build
+
+      - name: Tag Docker images
+        run: |
+          for img in users-service academic-service api-gateway frontend; do
+            docker tag ${img}:latest ${img}:${{ github.sha }}
+            docker tag ${img}:latest ${img}:${{ github.run_number }}
+          done
+
+      # =========================
+      # Container scanning (Trivy)
+      # =========================
+      - name: Trivy scan users-service
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: users-service:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: 1
+
+      - name: Trivy scan academic-service
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: academic-service:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: 1
+
+      - name: Trivy scan api-gateway
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: api-gateway:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: 1
+
+      - name: Trivy scan frontend
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: frontend:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: 1
+
+      # =========================
+      # Run stack + smoke tests
+      # =========================
+      - name: Run docker compose stack
+        run: |
+          docker compose -f ${{ env.COMPOSE_FILE }} up -d
+
+      - name: Wait for gateway health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS ${{ env.GATEWAY_URL }}/health > /dev/null; then
+              echo "Gateway is healthy"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Gateway health check failed"
+          exit 1
+
+      - name: Smoke test protected endpoint
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.GATEWAY_URL }}/courses)
+          if [ "$STATUS" != "401" ] && [ "$STATUS" != "403" ]; then
+            echo "Expected 401/403 but got $STATUS"
+            exit 1
+          fi
+
+      # =========================
+      # DAST - OWASP ZAP baseline
+      # =========================
+      - name: ZAP baseline scan
+        run: |
+          mkdir -p zap
+          docker run --rm --network host -v ${{ github.workspace }}/zap:/zap/wrk:rw \
+            ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+            -t ${{ env.GATEWAY_URL }} -m 3 -a \
+            -J /zap/wrk/zap_report.json -r /zap/wrk/zap_report.html
+
+      - name: ZAP gate (fail on HIGH)
+        run: |
+          python - <<'PY'
+          import json, sys
+          with open("zap/zap_report.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+          alerts = data.get("site", [{}])[0].get("alerts", [])
+          high = [a for a in alerts if a.get("riskcode") == "3"]
+          if high:
+            print(f"ZAP HIGH alerts found: {len(high)}")
+            for a in high:
+              print(f"- {a.get('alert')} ({a.get('riskdesc')})")
+            sys.exit(1)
+          print("No ZAP HIGH alerts found")
+          PY
+
+      - name: Shutdown services
+        if: always()
+        run: docker compose -f ${{ env.COMPOSE_FILE }} down || true

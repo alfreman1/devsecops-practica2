@@ -21,5 +21,9 @@ RUN npm run build
 # Serve
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
+RUN apk add --no-cache libcap \
+  && setcap 'cap_net_bind_service=+ep' /usr/sbin/nginx \
+  && chown -R nginx:nginx /usr/share/nginx/html
+USER nginx
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
