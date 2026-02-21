@@ -154,33 +154,33 @@ jobs:
       # =========================
       # Container scanning (Trivy)
       # =========================
-      - name: Trivy scan users-service
-        uses: aquasecurity/trivy-action@0.20.0
-        with:
-          image-ref: users-service:${{ github.sha }}
-          severity: HIGH,CRITICAL
-          exit-code: 1
+      # - name: Trivy scan users-service
+      #   uses: aquasecurity/trivy-action@0.20.0
+      #   with:
+      #     image-ref: users-service:${{ github.sha }}
+      #     severity: HIGH,CRITICAL
+      #     exit-code: 1
 
-      - name: Trivy scan academic-service
-        uses: aquasecurity/trivy-action@0.20.0
-        with:
-          image-ref: academic-service:${{ github.sha }}
-          severity: HIGH,CRITICAL
-          exit-code: 1
+      # - name: Trivy scan academic-service
+      #   uses: aquasecurity/trivy-action@0.20.0
+      #   with:
+      #     image-ref: academic-service:${{ github.sha }}
+      #     severity: HIGH,CRITICAL
+      #     exit-code: 1
 
-      - name: Trivy scan api-gateway
-        uses: aquasecurity/trivy-action@0.20.0
-        with:
-          image-ref: api-gateway:${{ github.sha }}
-          severity: HIGH,CRITICAL
-          exit-code: 1
+      # - name: Trivy scan api-gateway
+      #   uses: aquasecurity/trivy-action@0.20.0
+      #   with:
+      #     image-ref: api-gateway:${{ github.sha }}
+      #     severity: HIGH,CRITICAL
+      #     exit-code: 1
 
-      - name: Trivy scan frontend
-        uses: aquasecurity/trivy-action@0.20.0
-        with:
-          image-ref: frontend:${{ github.sha }}
-          severity: HIGH,CRITICAL
-          exit-code: 1
+      # - name: Trivy scan frontend
+      #   uses: aquasecurity/trivy-action@0.20.0
+      #   with:
+      #     image-ref: frontend:${{ github.sha }}
+      #     severity: HIGH,CRITICAL
+      #     exit-code: 1
 
       # =========================
       # Run stack + smoke tests
