@@ -154,33 +154,53 @@ jobs:
       # =========================
       # Container scanning (Trivy)
       # =========================
-      # - name: Trivy scan users-service
-      #   uses: aquasecurity/trivy-action@0.20.0
-      #   with:
-      #     image-ref: users-service:${{ github.sha }}
-      #     severity: HIGH,CRITICAL
-      #     exit-code: 1
+      - name: Trivy scan users-service
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: users-service:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          timeout: 10m
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db
 
-      # - name: Trivy scan academic-service
-      #   uses: aquasecurity/trivy-action@0.20.0
-      #   with:
-      #     image-ref: academic-service:${{ github.sha }}
-      #     severity: HIGH,CRITICAL
-      #     exit-code: 1
+      - name: Trivy scan academic-service
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: academic-service:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          timeout: 10m
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db
 
-      # - name: Trivy scan api-gateway
-      #   uses: aquasecurity/trivy-action@0.20.0
-      #   with:
-      #     image-ref: api-gateway:${{ github.sha }}
-      #     severity: HIGH,CRITICAL
-      #     exit-code: 1
+      - name: Trivy scan api-gateway
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: api-gateway:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          timeout: 10m
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db
 
-      # - name: Trivy scan frontend
-      #   uses: aquasecurity/trivy-action@0.20.0
-      #   with:
-      #     image-ref: frontend:${{ github.sha }}
-      #     severity: HIGH,CRITICAL
-      #     exit-code: 1
+      - name: Trivy scan frontend
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: frontend:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          timeout: 10m
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db
 
       # =========================
       # Run stack + smoke tests
@@ -212,30 +232,34 @@ jobs:
       # =========================
       # DAST - OWASP ZAP baseline
       # =========================
-      # - name: ZAP baseline scan
-      #   run: |
-      #     mkdir -p zap
-      #     docker run --rm --network host -v ${{ github.workspace }}/zap:/zap/wrk:rw \
-      #       ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
-      #       -t ${{ env.GATEWAY_URL }} -m 3 -a \
-      #       -J /zap/wrk/zap_report.json -r /zap/wrk/zap_report.html
+      - name: ZAP baseline scan
+        run: |
+          mkdir -p zap
+          chmod 777 zap
+          docker run --rm \
+            --user 0 \
+            --add-host=host.docker.internal:host-gateway \
+            -v ${{ github.workspace }}/zap:/zap/wrk:rw \
+            ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+            -t http://host.docker.internal:3000 -m 3 -a \
+            -J /zap/wrk/zap_report.json -r /zap/wrk/zap_report.html
 
-      # - name: ZAP gate (fail on HIGH)
-      #   run: |
-      #     python - <<'PY'
-      #     import json, sys
-      #     with open("zap/zap_report.json", "r", encoding="utf-8") as f:
-      #       data = json.load(f)
-      #     alerts = data.get("site", [{}])[0].get("alerts", [])
-      #     high = [a for a in alerts if a.get("riskcode") == "3"]
-      #     if high:
-      #       print(f"ZAP HIGH alerts found: {len(high)}")
-      #       for a in high:
-      #         print(f"- {a.get('alert')} ({a.get('riskdesc')})")
-      #       sys.exit(1)
-      #     print("No ZAP HIGH alerts found")
-      #     PY
+      - name: ZAP gate (fail on HIGH)
+        run: |
+          python - <<'PY'
+          import json, sys
+          with open("zap/zap_report.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+          alerts = data.get("site", [{}])[0].get("alerts", [])
+          high = [a for a in alerts if a.get("riskcode") == "3"]
+          if high:
+            print(f"ZAP HIGH alerts found: {len(high)}")
+            for a in high:
+              print(f"- {a.get('alert')} ({a.get('riskdesc')})")
+            sys.exit(1)
+          print("No ZAP HIGH alerts found")
+          PY
 
-      # - name: Shutdown services
-      #   if: always()
-      #   run: docker compose -f ${{ env.COMPOSE_FILE }} down || true
+      - name: Shutdown services
+        if: always()
+        run: docker compose -f ${{ env.COMPOSE_FILE }} down || true
