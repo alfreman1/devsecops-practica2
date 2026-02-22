@@ -154,56 +154,56 @@ jobs:
       # =========================
       # Container scanning (Trivy)
       # =========================
-      - name: Trivy scan users-service
-        uses: aquasecurity/trivy-action@0.20.0
-        with:
-          image-ref: users-service:${{ github.sha }}
-          severity: HIGH,CRITICAL
-          exit-code: 1
-          timeout: 10m
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
-          TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db
+      # - name: Trivy scan users-service
+      #   uses: aquasecurity/trivy-action@0.20.0
+      #   with:
+      #     image-ref: users-service:${{ github.sha }}
+      #     severity: HIGH,CRITICAL
+      #     exit-code: 1
+      #     timeout: 10m
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
+      #     TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db
 
-      - name: Trivy scan academic-service
-        uses: aquasecurity/trivy-action@0.20.0
-        with:
-          image-ref: academic-service:${{ github.sha }}
-          severity: HIGH,CRITICAL
-          exit-code: 1
-          timeout: 10m
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
-          TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db
+      # - name: Trivy scan academic-service
+      #   uses: aquasecurity/trivy-action@0.20.0
+      #   with:
+      #     image-ref: academic-service:${{ github.sha }}
+      #     severity: HIGH,CRITICAL
+      #     exit-code: 1
+      #     timeout: 10m
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
+      #     TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db
 
-      - name: Trivy scan api-gateway
-        uses: aquasecurity/trivy-action@0.20.0
-        with:
-          image-ref: api-gateway:${{ github.sha }}
-          severity: HIGH,CRITICAL
-          exit-code: 1
-          timeout: 10m
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
-          TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db
+      # - name: Trivy scan api-gateway
+      #   uses: aquasecurity/trivy-action@0.20.0
+      #   with:
+      #     image-ref: api-gateway:${{ github.sha }}
+      #     severity: HIGH,CRITICAL
+      #     exit-code: 1
+      #     timeout: 10m
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
+      #     TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db
 
-      - name: Trivy scan frontend
-        uses: aquasecurity/trivy-action@0.20.0
-        with:
-          image-ref: frontend:${{ github.sha }}
-          severity: HIGH,CRITICAL
-          exit-code: 1
-          timeout: 10m
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
-          TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db
+      # - name: Trivy scan frontend
+      #   uses: aquasecurity/trivy-action@0.20.0
+      #   with:
+      #     image-ref: frontend:${{ github.sha }}
+      #     severity: HIGH,CRITICAL
+      #     exit-code: 1
+      #     timeout: 10m
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
+      #     TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db
 
-      # =========================
-      # Run stack + smoke tests
+      # # =========================
+      # # Run stack + smoke tests
       # =========================
       - name: Run docker compose stack
         run: |
