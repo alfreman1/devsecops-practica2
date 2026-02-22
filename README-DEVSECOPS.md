@@ -1,6 +1,6 @@
-# DevSecOps CI/CD - Documentación
+# DevSecOps CI/CD - Documentacion
 
-Este documento describe el pipeline DevSecOps implementado para frontend + backend + contenedores, con quality gates y evidencias listas para entrega.
+Este documento describe el pipeline DevSecOps implementado para frontend, backend y contenedores, con quality gates y evidencia.
 
 ## Fases y herramientas
 
@@ -8,57 +8,70 @@ Este documento describe el pipeline DevSecOps implementado para frontend + backe
 - Herramienta: `npm ci` (frontend + servicios backend)
 - Fase DevSecOps: Build
 - Riesgo mitigado: builds no reproducibles o drift de dependencias
-- Por qué es necesaria: asegura instalaciones deterministas y evita sorpresas entre entornos
+- Por que es necesaria: asegura instalaciones deterministas y evita sorpresas entre entornos
 
 2. Code quality
 - Herramienta: `eslint` (frontend + servicios backend)
 - Fase DevSecOps: Shift-left quality
-- Riesgo mitigado: errores comunes, malas prácticas, deuda técnica temprana
-- Por qué es necesaria: detecta fallos antes de ejecutar pruebas o desplegar
+- Riesgo mitigado: errores comunes, malas practicas, deuda tecnica temprana
+- Por que es necesaria: detecta fallos antes de ejecutar pruebas o desplegar
 
 3. Tests
 - Herramienta: `jest` (frontend + servicios backend)
 - Fase DevSecOps: Verification
-- Riesgo mitigado: regresiones funcionales básicas
-- Por qué es necesaria: confirma que el comportamiento esperado sigue intacto
+- Riesgo mitigado: regresiones funcionales basicas
+- Por que es necesaria: confirma que el comportamiento esperado sigue intacto
 
-4. SAST
-- Herramienta: `semgrep --config=auto`
-- Fase DevSecOps: Secure coding
-- Riesgo mitigado: patrones de vulnerabilidad en código fuente
-- Por qué es necesaria: encuentra fallos antes de empaquetar o desplegar
-
-5. SCA
-- Herramienta: `npm audit --audit-level=critical` (frontend)
+4. SCA (dependencias)
+- Herramienta: `npm audit --audit-level=critical` (frontend + servicios backend)
 - Fase DevSecOps: Dependency risk
 - Riesgo mitigado: dependencias vulnerables conocidas
-- Por qué es necesaria: evita introducir CVEs críticos en el artefacto
+- Por que es necesaria: evita introducir CVEs criticos en el artefacto
+
+5. SAST
+- Herramienta: `semgrep --config=auto --severity=ERROR` (frontend + servicios backend)
+- Fase DevSecOps: Secure coding
+- Riesgo mitigado: patrones de vulnerabilidad en codigo fuente
+- Por que es necesaria: encuentra fallos antes de empaquetar o desplegar
 
 6. Docker build + versionado
-- Herramienta: `docker compose build` + tag con `github.sha` y `github.run_number`
+- Herramienta: `docker compose build` + tags con `github.sha` y `github.run_number`
 - Fase DevSecOps: Release
-- Riesgo mitigado: imágenes sin trazabilidad o sin control de versiones
-- Por qué es necesaria: permite identificar exactamente qué código se desplegó
+- Riesgo mitigado: imagenes sin trazabilidad o sin control de versiones
+- Por que es necesaria: permite identificar exactamente que codigo se desplego
 
 7. Container scanning
-- Herramienta: Trivy (HIGH/CRITICAL)
+- Herramienta: Trivy (HIGH,CRITICAL) con `exit-code=1`
 - Fase DevSecOps: Container security
-- Riesgo mitigado: vulnerabilidades en sistema base y librerías del contenedor
-- Por qué es necesaria: evita publicar imágenes con riesgos severos
+- Riesgo mitigado: vulnerabilidades en sistema base y librerias del contenedor
+- Por que es necesaria: evita publicar imagenes con riesgos severos
 
 8. Run stack + smoke tests
 - Herramienta: Docker Compose + `curl`
 - Fase DevSecOps: Deploy verification
 - Riesgo mitigado: despliegues que "compilan" pero no responden
-- Por qué es necesaria: valida health y seguridad básica (401/403 sin token)
+- Por que es necesaria: valida health y endpoints criticos
 
 9. DAST
-- Herramienta: OWASP ZAP baseline
+- Herramienta: OWASP ZAP baseline (repositorio `zap/`)
 - Fase DevSecOps: Runtime security
-- Riesgo mitigado: vulnerabilidades dinámicas en endpoints expuestos
-- Por qué es necesaria: complementa SAST/SCA con pruebas reales en ejecución
+- Riesgo mitigado: vulnerabilidades dinamicas en endpoints expuestos
+- Por que es necesaria: complementa SAST/SCA con pruebas reales en ejecucion
 
-## Cómo ejecutar en local
+## Evidencia
+
+- GitHub Actions run (pegar enlace): `https://github.com/<org>/<repo>/actions/runs/<id>`
+- Captura o log (pegar referencia en el repo): `docs/evidence/<archivo>`
+
+Ejemplo de extracto de log (placeholder):
+```
+Lint OK
+Tests OK
+Trivy scan OK (HIGH,CRITICAL)
+Smoke test OK
+```
+
+## Como ejecutar en local
 
 ### Docker Compose (stack completo)
 ```bash
@@ -69,7 +82,7 @@ docker compose -f backend/docker-compose.yml up --build
 docker compose -f backend/docker-compose.yml down
 ```
 
-### Lint y tests
+### Lint, tests y SCA
 
 Frontend:
 ```bash
@@ -77,6 +90,7 @@ cd frontend
 npm ci
 npm run lint
 npm test
+npm audit --audit-level=critical
 ```
 
 Backend (cada servicio):
@@ -85,6 +99,7 @@ cd backend/users-service
 npm ci
 npm run lint
 npm test
+npm audit --audit-level=critical
 ```
 
 ```bash
@@ -92,6 +107,7 @@ cd backend/academic-service
 npm ci
 npm run lint
 npm test
+npm audit --audit-level=critical
 ```
 
 ```bash
@@ -99,6 +115,7 @@ cd backend/api-gateway
 npm ci
 npm run lint
 npm test
+npm audit --audit-level=critical
 ```
 
 ### Smoke tests (manual)
