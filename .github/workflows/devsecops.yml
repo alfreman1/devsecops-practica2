@@ -13,10 +13,14 @@ jobs:
       PYTHON_VERSION: "3.11"
       COMPOSE_FILE: backend/docker-compose.yml
       GATEWAY_URL: http://localhost:3000
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # =========================
+      # Runtimes
+      # =========================
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -27,6 +31,9 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      # =========================
+      # Env files for local stack
+      # =========================
       - name: Create env files for Docker Compose
         run: |
           cp backend/users-service/.env.example backend/users-service/.env
@@ -118,13 +125,22 @@ jobs:
           semgrep --config=auto --severity=ERROR
 
       # =========================
-      # SCA
+      # SCA (npm audit)
+      # NOTE: audit-level=high to catch HIGH as well
       # =========================
       - name: SCA frontend (npm audit)
         run: |
           cd frontend
-          npm audit --audit-level=critical
+          npm audit --audit-level=high
 
+      # If you want backend npm audit as well (optional):
+      - name: SCA backend (npm audit)
+        run: |
+          cd backend/users-service && npm audit --audit-level=high
+          cd ../academic-service && npm audit --audit-level=high
+          cd ../api-gateway && npm audit --audit-level=high
+
+      # Python deps (if any)
       - name: SCA backend (pip-audit if requirements.txt exists)
         run: |
           python -m pip install pip-audit
@@ -133,6 +149,24 @@ jobs:
           else
             echo "No requirements.txt found. Skipping pip-audit."
           fi
+
+      # =========================
+      # SCA (Trivy filesystem) - lockfiles & repo scan
+      # This catches vulnerabilities in package-lock.json BEFORE Docker build
+      # =========================
+      - name: Trivy SCA (filesystem)
+        uses: aquasecurity/trivy-action@v0.34.1
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          ignore-unfixed: true
+          timeout: 10m
+        env:
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db
 
       # =========================
       # Docker build + versioning
@@ -152,58 +186,27 @@ jobs:
           done
 
       # =========================
-      # Container scanning (Trivy)
+      # Container scanning (Trivy) - matrix-style loop (single step)
       # =========================
-      # - name: Trivy scan users-service
-      #   uses: aquasecurity/trivy-action@0.20.0
-      #   with:
-      #     image-ref: users-service:${{ github.sha }}
-      #     severity: HIGH,CRITICAL
-      #     exit-code: 1
-      #     timeout: 10m
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
-      #     TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db
+      - name: Trivy scan images (users-service, academic-service, api-gateway, frontend)
+        run: |
+          set -e
+          IMAGES="users-service academic-service api-gateway frontend"
+          for img in $IMAGES; do
+            echo "==> Scanning $img:${{ github.sha }}"
+            docker run --rm \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              -v $HOME/.cache/trivy:/root/.cache/ \
+              aquasec/trivy:latest image \
+              --severity HIGH,CRITICAL \
+              --exit-code 1 \
+              --timeout 10m \
+              --ignore-unfixed \
+              ${img}:${{ github.sha }}
+          done
 
-      # - name: Trivy scan academic-service
-      #   uses: aquasecurity/trivy-action@0.20.0
-      #   with:
-      #     image-ref: academic-service:${{ github.sha }}
-      #     severity: HIGH,CRITICAL
-      #     exit-code: 1
-      #     timeout: 10m
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
-      #     TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db
-
-      # - name: Trivy scan api-gateway
-      #   uses: aquasecurity/trivy-action@0.20.0
-      #   with:
-      #     image-ref: api-gateway:${{ github.sha }}
-      #     severity: HIGH,CRITICAL
-      #     exit-code: 1
-      #     timeout: 10m
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
-      #     TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db
-
-      # - name: Trivy scan frontend
-      #   uses: aquasecurity/trivy-action@0.20.0
-      #   with:
-      #     image-ref: frontend:${{ github.sha }}
-      #     severity: HIGH,CRITICAL
-      #     exit-code: 1
-      #     timeout: 10m
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
-      #     TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db
-
-      # # =========================
-      # # Run stack + smoke tests
+      # =========================
+      # Run stack + smoke tests
       # =========================
       - name: Run docker compose stack
         run: |
@@ -242,8 +245,7 @@ jobs:
             -v ${{ github.workspace }}/zap:/zap/wrk:rw \
             ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
             -t http://host.docker.internal:3000 -m 3 -a \
-            -J zap_report.json -r zap_report.html \
-            -c zap-baseline.conf
+            -J /zap/wrk/zap_report.json -r /zap/wrk/zap_report.html
 
       - name: ZAP gate (fail on HIGH)
         run: |
