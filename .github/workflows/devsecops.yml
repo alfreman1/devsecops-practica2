@@ -242,7 +242,8 @@ jobs:
             -v ${{ github.workspace }}/zap:/zap/wrk:rw \
             ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
             -t http://host.docker.internal:3000 -m 3 -a \
-            -J /zap/wrk/zap_report.json -r /zap/wrk/zap_report.html
+            -J zap_report.json -r zap_report.html \
+            -c zap-baseline.conf
 
       - name: ZAP gate (fail on HIGH)
         run: |
